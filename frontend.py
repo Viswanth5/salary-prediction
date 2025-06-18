@@ -1,34 +1,49 @@
+# frontend.py
 import streamlit as st
-import random
+import pandas as pd
+import matplotlib.pyplot as plt
+from io import BytesIO
 
-def show_ui(model, predict_func):
-    st.markdown("""
-        <h1 style='text-align: center; color: #FF6F61;'>💸 AI Salary Predictor</h1>
-        <p style='text-align: center; font-size: 18px;'>Wanna know how fat your paycheck might be? Let's find out 😎</p>
-        <hr style="border:1px solid #ccc;">
-    """, unsafe_allow_html=True)
+def show_ui(model, predict_salary):
+    st.set_page_config(page_title="Salary Predictor", layout="centered")
+    st.title("💼 Salary Predictor App")
+    st.write("This app predicts salary based on years of experience using a Linear Regression model.")
 
-    years = st.slider("📅 How many years of experience do you have?", 0.0, 20.0, 1.0, step=0.1)
+    # Sidebar
+    st.sidebar.header("⚙ Options")
+    uploaded_file = st.sidebar.file_uploader("Upload a custom CSV file", type=["csv"])
 
-    if st.button("💥 Predict My Salary"):
-        salary = predict_func(model, years)
-        
-        reactions = [
-            f"You might be making ₹ {salary:,.2f} soon!",
-            f"Looks like your experience is finally gonna pay off! ₹ {salary:,.2f} 💰",
-            f"Holy smokes! You could be earning ₹ {salary:,.2f} 😮",
-            f"Bro you better ask for a raise if you're getting less than ₹ {salary:,.2f} 😂",
-            f"Not bad at all! ₹ {salary:,.2f} is pretty solid, my dude 💪"
-        ]
+    # Load dataset
+    if uploaded_file is not None:
+        data = pd.read_csv(uploaded_file)
+        st.success("Custom dataset loaded successfully.")
+    else:
+        data = pd.read_csv("Salary_dataset.csv")
+        st.info("Using default Salary_dataset.csv")
 
-        st.success(random.choice(reactions))
+    # Display data
+    with st.expander("📊 Preview Dataset"):
+        st.dataframe(data)
 
-        if salary > 100000:
-            st.balloons()
-            st.markdown("### 🎉 You rich rich huh?! Drinks on you today!")
+    # Show scatter plot
+    with st.expander("📈 Years of Experience vs Salary Chart"):
+        fig, ax = plt.subplots()
+        ax.scatter(data['YearsExperience'], data['Salary'], color='blue')
+        ax.set_xlabel("Years of Experience")
+        ax.set_ylabel("Salary")
+        ax.set_title("Experience vs Salary")
+        st.pyplot(fig)
 
-        elif salary < 30000:
-            st.warning("💀 You need to talk to HR... or start freelancing on weekends 😂")
+    # Input and prediction
+    st.subheader("🔍 Predict Salary")
+    years = st.number_input("Enter Years of Experience", min_value=0.0, step=0.1)
 
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.caption("🔮 Powered by Streamlit + ML + President-level vibes.")
+    if st.button("Predict Salary"):
+        salary = predict_salary(model, years)
+        st.success(f"🎯 Predicted Salary: ₹{salary:,.2f}")
+
+        # Download result
+        result_df = pd.DataFrame([[years, salary]], columns=["YearsExperience", "PredictedSalary"])
+        buffer = BytesIO()
+        result_df.to_csv(buffer, index=False)
+        st.download_button("Download Prediction", buffer.getvalue(), file_name="salary_prediction.csv", mime="text/csv")
